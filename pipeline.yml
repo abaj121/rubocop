@@ -1,0 +1,407 @@
+resources:
+- name: rollerderbyrss-version
+  type: semver
+  source:
+    driver: git
+    uri: git@github.com:PurpleBooth/versions.git
+    branch: rollerderbyrss
+    private_key: ((github_private_key))
+    initial_version: 0.3.0
+    file: version
+- name: purplebooth-co-uk-version
+  type: semver
+  source:
+    driver: git
+    uri: git@github.com:PurpleBooth/versions.git
+    branch: purplebooth-co-uk
+    private_key: ((github_private_key))
+    initial_version: 0.1.7
+    file: version
+- name: purplebooth-co-uk-nr-agent-version
+  type: semver
+  source:
+    driver: git
+    uri: git@github.com:PurpleBooth/versions.git
+    branch: purplebooth-co-uk-nr-agent
+    private_key: ((github_private_key))
+    initial_version: 0.1.0
+    file: version
+- name: privilaged-helm-container-version
+  type: semver
+  source:
+    driver: git
+    uri: git@github.com:PurpleBooth/versions.git
+    branch: infrastructure
+    private_key: ((github_private_key))
+    initial_version: 0.1.0
+    file: version
+- name: privilaged-helm-container-repo
+  type: git
+  source:
+    uri: git@github.com:PurpleBooth/infrastructure-container.git
+    branch: master
+    private_key: ((github_private_key))
+- name: purplebooth-co-uk-repo
+  type: git
+  source:
+    uri: git@github.com:PurpleBooth/purplebooth-co-uk-v2.git
+    branch: master
+    private_key: ((github_private_key))
+- name: purplebooth-co-uk-helm-repo
+  type: git
+  source:
+    uri: git@github.com:PurpleBooth/purplebooth-co-uk-v2-helm.git
+    branch: master
+    private_key: ((github_private_key))
+- name: purplebooth-co-uk-nr-agent-repo
+  type: git
+  source:
+    uri: git@github.com:PurpleBooth/nginx-nr-agent.git
+    branch: master
+    private_key: ((github_private_key))
+- name: rollerderbyrss-repo
+  type: git
+  source:
+    uri: git@github.com:PurpleBooth/FlattrackstatsBoutRSS.git
+    branch: master
+    private_key: ((github_private_key))
+- name: rollerderbyrss-helm-repo
+  type: git
+  source:
+    uri: git@github.com:PurpleBooth/FlattrackstatsBoutRSS-helm.git
+    branch: master
+    private_key: ((github_private_key))
+- name: helm-charts-repo
+  type: git
+  source:
+    uri: git@github.com:kubernetes/charts.git
+    branch: master
+    private_key: ((github_private_key))
+- name: privilaged-helm-container
+  type: docker-image
+  source:
+    repository: gcr.io/purplebooth-gke/infrastructure-build
+    username: _json_key
+    password: {{gcr-key}}
+- name: purplebooth-co-uk-container
+  type: docker-image
+  source:
+    repository: gcr.io/purplebooth-gke/github-purplebooth-purplebooth-co-uk-v2
+    username: _json_key
+    password: {{gcr-key}}
+- name: purplebooth-co-uk-nr-agent-container
+  type: docker-image
+  source:
+    repository: gcr.io/purplebooth-gke/github-purplebooth-nginx-nr-agent
+    username: _json_key
+    password: {{gcr-key}}
+- name: rollerderbyrss-container
+  type: docker-image
+  source:
+    repository: gcr.io/purplebooth-gke/github-purplebooth-flattrackstatsboutrss
+    username: _json_key
+    password: {{gcr-key}}
+- name: 1d
+  type: time
+  source: {interval: 24h}
+
+jobs:
+- name: Privilaged Helm Container Major Release
+  serial: true
+  build_logs_to_retain: 40
+  plan:
+  - get: privilaged-helm-container-repo
+    trigger: true
+  - get: privilaged-helm-container-version
+    params:
+      bump: major
+  - put: privilaged-helm-container-version
+    params:
+      file: privilaged-helm-container-version/version
+  - put: privilaged-helm-container-repo
+    params:
+      tag: privilaged-helm-container-version/version
+      tag_prefix: v
+      repository: privilaged-helm-container-repo
+      tag_only: true
+- name: Build Privilaged Helm Container
+  build_logs_to_retain: 40
+  plan:
+  - get: privilaged-helm-container-version
+  - get: privilaged-helm-container-repo
+    trigger: true
+    passed: ["Privilaged Helm Container Major Release"]
+  - put: privilaged-helm-container
+    params:
+      build: privilaged-helm-container-repo
+      tag: privilaged-helm-container-version/version
+      tag_prefix: v
+      tag_as_latest: true
+- name: Purplebooth.co.uk Patch Release
+  serial_groups:
+    - "purplebooth-co-uk-versioning"
+  build_logs_to_retain: 40
+  plan:
+  - get: purplebooth-co-uk-repo
+  - get: purplebooth-co-uk-version
+    params:
+      bump: patch
+  - put: purplebooth-co-uk-version
+    params:
+      file: purplebooth-co-uk-version/version
+  - put: purplebooth-co-uk-repo
+    params:
+      tag: purplebooth-co-uk-version/version
+      tag_prefix: v
+      repository: purplebooth-co-uk-repo
+      tag_only: true
+- name: Purplebooth.co.uk Minor Release
+  serial_groups:
+    - "purplebooth-co-uk-versioning"
+  build_logs_to_retain: 40
+  plan:
+  - get: purplebooth-co-uk-repo
+  - get: purplebooth-co-uk-version
+    params:
+      bump: minor
+  - put: purplebooth-co-uk-version
+    params:
+      file: purplebooth-co-uk-version/version
+  - put: purplebooth-co-uk-repo
+    params:
+      tag: purplebooth-co-uk-version/version
+      tag_prefix: v
+      repository: purplebooth-co-uk-repo
+      tag_only: true
+- name: Purplebooth.co.uk Major Release
+  serial_groups:
+    - "purplebooth-co-uk-versioning"
+  build_logs_to_retain: 40
+  plan:
+  - get: purplebooth-co-uk-repo
+  - get: purplebooth-co-uk-version
+    params:
+      bump: major
+  - put: purplebooth-co-uk-version
+    params:
+      file: purplebooth-co-uk-version/version
+  - put: purplebooth-co-uk-repo
+    params:
+      tag: purplebooth-co-uk-version/version
+      tag_prefix: v
+      repository: purplebooth-co-uk-repo
+      tag_only: true
+- name: Build PurpleBooth.Co.Uk Container
+  build_logs_to_retain: 40
+  plan:
+  - get: 1d
+    trigger: true
+  - get: purplebooth-co-uk-repo
+  - get: purplebooth-co-uk-version
+    trigger: true
+  - put: purplebooth-co-uk-container
+    params:
+      build: purplebooth-co-uk-repo
+      tag: purplebooth-co-uk-version/version
+      tag_prefix: v
+      tag_as_latest: true
+- name: Deploy Purplebooth.co.uk
+  build_logs_to_retain: 40
+  plan:
+  - get: purplebooth-co-uk-helm-repo
+    trigger: true
+  - get: purplebooth-co-uk-version
+    trigger: true
+    passed: ["Build PurpleBooth.Co.Uk Container"]
+  - get: purplebooth-co-uk-nr-agent-version
+    trigger: true
+    passed: ["Build New Relic Agent Container"]
+  - get: privilaged-helm-container
+  - task: deploy-purplebooth-co-uk
+    image: privilaged-helm-container
+    config:
+      platform: linux
+      inputs:
+        - name: purplebooth-co-uk-helm-repo
+        - name: purplebooth-co-uk-version
+        - name: purplebooth-co-uk-nr-agent-version
+      run:
+        path: bash
+        args:
+          - -exc
+          - |
+            helm upgrade --reuse-values --set "image.newRelic.tag=v$(cat purplebooth-co-uk-nr-agent-version/version)" --set "image.nginx.tag=v$(cat purplebooth-co-uk-version/version)" purplebooth-co-uk-2017-04-26-05-05-04 purplebooth-co-uk-helm-repo
+- name: New Relic Agent Patch Release
+  serial_groups:
+    - "purplebooth-co-uk-nr-agent-versioning"
+  build_logs_to_retain: 40
+  plan:
+  - get: purplebooth-co-uk-nr-agent-repo
+  - get: purplebooth-co-uk-nr-agent-version
+    params:
+      bump: patch
+  - put: purplebooth-co-uk-nr-agent-version
+    params:
+      file: purplebooth-co-uk-nr-agent-version/version
+  - put: purplebooth-co-uk-nr-agent-repo
+    params:
+      tag: purplebooth-co-uk-nr-agent-version/version
+      tag_prefix: v
+      repository: purplebooth-co-uk-nr-agent-repo
+      tag_only: true
+- name: New Relic Agent Minor Release
+  serial_groups:
+    - "purplebooth-co-uk-nr-agent-versioning"
+  build_logs_to_retain: 40
+  plan:
+  - get: purplebooth-co-uk-nr-agent-repo
+  - get: purplebooth-co-uk-nr-agent-version
+    params:
+      bump: minor
+  - put: purplebooth-co-uk-nr-agent-version
+    params:
+      file: purplebooth-co-uk-nr-agent-version/version
+  - put: purplebooth-co-uk-nr-agent-repo
+    params:
+      tag: purplebooth-co-uk-nr-agent-version/version
+      tag_prefix: v
+      repository: purplebooth-co-uk-nr-agent-repo
+      tag_only: true
+- name: New Relic Agent Major Release
+  serial_groups:
+    - "purplebooth-co-uk-nr-agent-versioning"
+  build_logs_to_retain: 40
+  plan:
+  - get: purplebooth-co-uk-nr-agent-repo
+  - get: purplebooth-co-uk-nr-agent-version
+    params:
+      bump: major
+  - put: purplebooth-co-uk-nr-agent-version
+    params:
+      file: purplebooth-co-uk-nr-agent-version/version
+  - put: purplebooth-co-uk-nr-agent-repo
+    params:
+      tag: purplebooth-co-uk-nr-agent-version/version
+      tag_prefix: v
+      repository: purplebooth-co-uk-nr-agent-repo
+      tag_only: true
+- name: Build New Relic Agent Container
+  build_logs_to_retain: 40
+  plan:
+  - get: 1d
+    trigger: true
+  - get: purplebooth-co-uk-nr-agent-repo
+  - get: purplebooth-co-uk-nr-agent-version
+    trigger: true
+  - put: purplebooth-co-uk-nr-agent-container
+    params:
+      build: purplebooth-co-uk-nr-agent-repo
+      tag: purplebooth-co-uk-nr-agent-version/version
+      tag_prefix: v
+      tag_as_latest: true
+- name: RollerDerbyRSS Patch Release
+  serial_groups:
+    - "rollerderbyrss-versioning"
+  build_logs_to_retain: 40
+  plan:
+  - get: rollerderbyrss-repo
+  - get: rollerderbyrss-version
+    params:
+      bump: patch
+  - put: rollerderbyrss-version
+    params:
+      file: rollerderbyrss-version/version
+  - put: rollerderbyrss-repo
+    params:
+      tag: rollerderbyrss-version/version
+      tag_prefix: v
+      repository: rollerderbyrss-repo
+      tag_only: true
+- name: RollerDerbyRSS Minor Release
+  serial_groups:
+    - "rollerderbyrss-versioning"
+  build_logs_to_retain: 40
+  plan:
+  - get: rollerderbyrss-repo
+  - get: rollerderbyrss-version
+    params:
+      bump: minor
+  - put: rollerderbyrss-version
+    params:
+      file: rollerderbyrss-version/version
+  - put: rollerderbyrss-repo
+    params:
+      tag: rollerderbyrss-version/version
+      tag_prefix: v
+      repository: rollerderbyrss-repo
+      tag_only: true
+- name: RollerDerbyRSS Major Release
+  serial_groups:
+    - "rollerderbyrss-versioning"
+  build_logs_to_retain: 40
+  plan:
+  - get: rollerderbyrss-repo
+  - get: rollerderbyrss-version
+    params:
+      bump: major
+  - put: rollerderbyrss-version
+    params:
+      file: rollerderbyrss-version/version
+  - put: rollerderbyrss-repo
+    params:
+      tag: rollerderbyrss-version/version
+      tag_prefix: v
+      repository: rollerderbyrss-repo
+      tag_only: true
+- name: Build RollerDerbyRSS Container
+  build_logs_to_retain: 40
+  plan:
+  - get: 1d
+    trigger: true
+  - get: rollerderbyrss-repo
+  - get: rollerderbyrss-version
+    trigger: true
+  - put: rollerderbyrss-container
+    params:
+      build: rollerderbyrss-repo
+      tag: rollerderbyrss-version/version
+      tag_prefix: v
+      tag_as_latest: true
+- name: Deploy RollerDerbyRSS
+  build_logs_to_retain: 40
+  plan:
+  - get: rollerderbyrss-helm-repo
+    trigger: true
+  - get: rollerderbyrss-version
+    trigger: true
+    passed: ["Build RollerDerbyRSS Container"]
+  - get: privilaged-helm-container
+  - task: deploy-rollerderbyrss
+    image: privilaged-helm-container
+    config:
+      platform: linux
+      inputs:
+        - name: rollerderbyrss-helm-repo
+        - name: rollerderbyrss-version
+      run:
+        path: bash
+        args:
+          - -exc
+          - |
+            helm upgrade --reuse-values --set "image.tag=v$(cat rollerrss-version/version)" rollerrss-2017-04-26-05-05-30 rollerderbyrss-helm-repo
+- name: Deploy Kube-Lego
+  build_logs_to_retain: 40
+  plan:
+  - get: helm-charts-repo
+    trigger: true
+  - get: privilaged-helm-container
+  - task: deploy-kube-lego
+    image: privilaged-helm-container
+    config:
+      platform: linux
+      run:
+        path: bash
+        args:
+          - -exc
+          - |
+            helm upgrade --reuse-values kube-lego-2017-04-25-22-10-52 stable/kube-lego
