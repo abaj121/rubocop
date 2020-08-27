@@ -1,0 +1,10 @@
+# One of the steps, insert where you wish:
+
+- run:
+    name: run rubocop
+    command: |
+      source /home/circleci/.rvm/scripts/rvm
+      rvm --default use 2.5.3
+      bash bin/rubocop.sh
+      
+# Remove the RVM lines if not needed for your setup
