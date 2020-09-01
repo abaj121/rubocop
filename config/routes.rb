@@ -1,4 +1,6 @@
 Rails.application.routes.draw do
+  resources :comments
+  resources :descriptions
   resources :titles
   resources :blogs
   root 'recipes#index'
